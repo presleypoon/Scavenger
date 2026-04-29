@@ -96,7 +96,7 @@ void Move(char *c)
 	{
 	case 'w':
 	{
-		(Player.y)--;
+		Player.y--;
 		if (Player.y < 0)
 		{
 			Player.y = 9;
