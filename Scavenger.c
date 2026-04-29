@@ -7,13 +7,32 @@
 #include <time.h>
 #include <math.h>
 
-void Move(int *PlayerX, int *PlayerY);
-void PickUpLogic(int PlayerX, int PlayerY, int *PickUpX, int *PickUpY, int64_t *Score);
-void EnemyLogic(int PlayerX, int PlayerY, int *EnemyX, int *EnemyY, int64_t *Score, int64_t Tick);
+void Move(char *c);
+void PickUpLogic();
+void EnemyLogic();
 int sign(int num);
 int RandomInt(int max);
-void Render(char Screen[], int PlayerX, int PlayerY, int PickUpX, int PickUpY, int EnemyX, int EnemyY, int64_t Score);
+void Render();
 void PrintColouredPx(char colour, int length);
+
+typedef struct
+{
+	int x;
+	int y;
+} Entity;
+
+Entity Player = {0, 0};
+Entity Loot = {0, 0};
+Entity Enemy = {5, 5};
+
+char Screen[101];
+
+int64_t Score = -10;
+const int fps = 30;
+int64_t Tick = 0;
+uint8_t Health = 20;
+
+bool Paused = false;
 
 int main()
 {
@@ -40,114 +59,128 @@ int main()
 	uint64_t Time = time(NULL);
 	srand(Time);
 
-	int PlayerX = 0;
-	int PlayerY = 0;
-	char Screen[101];
-	int PickUpX = 0;
-	int PickUpY = 0;
-	int EnemyX = 10;
-	int EnemyY = 10;
-
-	int64_t Score = -10;
-	const int fps = 30;
-	int64_t Tick = 0;
-
 	system("cls");
 	while (1)
 	{
-		Move(&PlayerX, &PlayerY);
-		PickUpLogic(PlayerX, PlayerY, &PickUpX, &PickUpY, &Score);
-		EnemyLogic(PlayerX, PlayerY, &EnemyX, &EnemyY, &Score, Tick);
-		Render(Screen, PlayerX, PlayerY, PickUpX, PickUpY, EnemyX, EnemyY, Score);
-		rand();
-		Tick++;
+		char c;
+		bool input = _kbhit();
+		if (input)
+		{
+			c = _getch();
+			if (c == 'p')
+			{
+				Paused ^= 1;
+			}
+		}
+
+		if (!Paused)
+		{
+			if (input)
+			{
+				Move(&c);
+			}
+			PickUpLogic();
+			EnemyLogic();
+			Render();
+			rand();
+			Tick++;
+		}
 		printf("\033[?25h");
 		Sleep(1000 / fps);
 	}
 }
 
-void Move(int *PlayerX, int *PlayerY)
+void Move(char *c)
 {
-	if (!_kbhit())
-	{
-		return;
-	}
-	char c = _getch();
-	switch (c)
+	switch (*c)
 	{
 	case 'w':
 	{
-		(*PlayerY)--;
-		if ((*PlayerY) < 0)
+		(Player.y)--;
+		if (Player.y < 0)
 		{
-			(*PlayerY) = 9;
+			Player.y = 9;
 		}
 		break;
 	}
 	case 'a':
 	{
-		(*PlayerX)--;
-		if ((*PlayerX) < 0)
+		Player.x--;
+		if (Player.x < 0)
 		{
-			(*PlayerX) = 9;
+			Player.x = 9;
 		}
 		break;
 	}
 	case 's':
 	{
-		(*PlayerY)++;
-		if ((*PlayerY) > 9)
+		Player.y++;
+		if (Player.y > 9)
 		{
-			(*PlayerY) = 0;
+			Player.y = 0;
 		}
 		break;
 	}
 	case 'd':
 	{
-		(*PlayerX)++;
-		if ((*PlayerX) > 9)
+		Player.x++;
+		if (Player.x > 9)
 		{
-			(*PlayerX) = 0;
+			Player.x = 0;
 		}
 		break;
 	}
 	}
-	printf("%d, %d\n", *PlayerX, *PlayerY);
 }
 
-void PickUpLogic(int PlayerX, int PlayerY, int *PickUpX, int *PickUpY, int64_t *Score)
+void PickUpLogic()
 {
-	if (PlayerX == *PickUpX && PlayerY == *PickUpY)
+	if (Player.x == Loot.x && Player.y == Loot.y)
 	{
-		*PickUpX = RandomInt(10);
-		*PickUpY = RandomInt(10);
-		*Score += 10;
+		Loot.x = RandomInt(10);
+		Loot.y = RandomInt(10);
+		Score += 10;
+		if (Score >= 500)
+		{
+			Render();
+			printf("\nYou've won!!!");
+			exit(0);
+			// Restart();
+		}
 	}
 }
 
-void EnemyLogic(int PlayerX, int PlayerY, int *EnemyX, int *EnemyY, int64_t *Score, int64_t Tick)
+void EnemyLogic()
 {
 	if (Tick % 10)
 	{
 		return;
 	}
-	int XDist = *EnemyX - PlayerX;
-	int YDist = *EnemyY - PlayerY;
+	int XDist = Enemy.x - Player.x;
+	int YDist = Enemy.y - Player.y;
 	if (abs(XDist) > abs(YDist))
 	{
-		*EnemyX -= sign(XDist);
-		*EnemyX = (*EnemyX + 10) % 10;
+		Enemy.x -= sign(XDist);
+		Enemy.x = (Enemy.x + 10) % 10;
 	}
 	else
 	{
-		*EnemyY -= sign(YDist);
-		*EnemyY = (*EnemyY + 10) % 10;
+		Enemy.y -= sign(YDist);
+		Enemy.y = (Enemy.y + 10) % 10;
 	}
-	if (!((*EnemyX == PlayerX) && (*EnemyY == PlayerY)))
+	if (!(Enemy.x == Player.x && Enemy.y == Player.y))
 	{
 		return;
 	}
-	*Score -= 10;
+	Score -= 5;
+	Health--;
+	if (Health == 0)
+	{
+		Render();
+		printf("You've lose :(");
+		exit(0);
+		// Restart();
+	}
 }
 
 int sign(int num)
@@ -172,15 +205,35 @@ int RandomInt(int max)
 	return rand() % max;
 }
 
-void Render(char Screen[], int PlayerX, int PlayerY, int PickUpX, int PickUpY, int EnemyX, int EnemyY, int64_t Score)
+void Render()
 {
-	char Buffer[] = "++++++++++++\n+          +\n+          +\n+          +\n+          +\n+          +\n+          +\n+          +\n+          +\n+          +\n+          +\n++++++++++++";
+	char Buffer[] = "++++++++++++\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"+          +\n"
+									"++++++++++++";
 
-	Buffer[(PlayerX + 1) + 13 * (PlayerY + 1)] = '@';
-	Buffer[(EnemyX + 1) + 13 * (EnemyY + 1)] = '!';
-	Buffer[(PickUpX + 1) + 13 * (PickUpY + 1)] = '$';
+	Buffer[(Player.x + 1) + 13 * (Player.y + 1)] = '@';
+	Buffer[(Enemy.x + 1) + 13 * (Enemy.y + 1)] = '!';
+	Buffer[(Loot.x + 1) + 13 * (Loot.y + 1)] = '$';
 
-	printf("\033[?25l\033[H%ld                    \n", Score);
+	printf("\033[?25l\033[H%lld", Score);
+	int x = snprintf(NULL, 0, "%lld", Score);
+	for (int i = 0; i < (4 - x); i++)
+	{
+		printf(" ");
+	}
+
+	PrintColouredPx('r', Health);
+	PrintColouredPx('d', 20 - Health);
+	printf("\n");
 
 	int i = 0;
 	while (true)
@@ -228,7 +281,7 @@ void Render(char Screen[], int PlayerX, int PlayerY, int PickUpX, int PickUpY, i
 }
 
 /**
- * @param colour: b for black, r for red, g for green, y for yellow, l for blue, m for magenta, c for cyan and w for white, other will be default
+ * @param colour b for black, r for red, g for green, y for yellow, l for blue, m for magenta, c for cyan and w for white, other will be default
  */
 void PrintColouredPx(char colour, int length)
 {
